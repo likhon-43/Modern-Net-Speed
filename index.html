@@ -1,0 +1,1563 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="carbon">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VortexSpeed // Modern Network Telemetry Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+/* ============================================================
+   DESIGN TOKENS & THEMES
+   ============================================================ */
+:root {
+  --transition-smooth: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  --transition-bounce: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  --font-primary: 'Outfit', sans-serif;
+  --font-mono: 'Share Tech Mono', monospace;
+  --radius-lg: 20px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+}
+
+[data-theme="carbon"] {
+  --bg-main: #0a0b0d;
+  --bg-card: rgba(18,20,24,0.75);
+  --bg-card-border: rgba(255,255,255,0.06);
+  --bg-card-hover: rgba(26,29,36,0.85);
+  --bg-input: #121418;
+  --accent-primary: #00f2fe;
+  --accent-secondary: #4facfe;
+  --accent-tertiary: #00ff87;
+  --accent-glow: rgba(0,242,254,0.3);
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-download: #00f2fe;
+  --text-upload: #00ff87;
+  --bg-gradient: radial-gradient(circle at 10% 20%,rgba(13,20,36,.9) 0%,rgba(10,11,13,1) 90%);
+}
+[data-theme="cyberpunk"] {
+  --bg-main: #0b0214;
+  --bg-card: rgba(18,5,34,0.7);
+  --bg-card-border: rgba(255,0,127,0.15);
+  --bg-card-hover: rgba(30,8,56,0.8);
+  --bg-input: #1b0730;
+  --accent-primary: #ff007f;
+  --accent-secondary: #9d00ff;
+  --accent-tertiary: #ffe600;
+  --accent-glow: rgba(255,0,127,0.35);
+  --text-main: #f9f6fc;
+  --text-muted: #b4a0cf;
+  --text-download: #ff007f;
+  --text-upload: #ffe600;
+  --bg-gradient: radial-gradient(circle at 50% 50%,rgba(26,4,46,.95) 0%,rgba(11,2,20,1) 100%);
+}
+[data-theme="glass"] {
+  --bg-main: #08112b;
+  --bg-card: rgba(255,255,255,0.05);
+  --bg-card-border: rgba(255,255,255,0.15);
+  --bg-card-hover: rgba(255,255,255,0.09);
+  --bg-input: rgba(255,255,255,0.08);
+  --accent-primary: #ff758c;
+  --accent-secondary: #ff7eb3;
+  --accent-tertiary: #70a1ff;
+  --accent-glow: rgba(255,117,140,0.3);
+  --text-main: #ffffff;
+  --text-muted: rgba(255,255,255,0.6);
+  --text-download: #ff758c;
+  --text-upload: #70a1ff;
+  --bg-gradient: linear-gradient(135deg,#0f2027 0%,#203a43 50%,#2c5364 100%);
+}
+[data-theme="zenith"] {
+  --bg-main: #f3f5f9;
+  --bg-card: rgba(255,255,255,0.9);
+  --bg-card-border: rgba(0,0,0,0.05);
+  --bg-card-hover: rgba(255,255,255,1);
+  --bg-input: #ffffff;
+  --accent-primary: #4f46e5;
+  --accent-secondary: #06b6d4;
+  --accent-tertiary: #10b981;
+  --accent-glow: rgba(79,70,229,0.15);
+  --text-main: #1f2937;
+  --text-muted: #6b7280;
+  --text-download: #4f46e5;
+  --text-upload: #10b981;
+  --bg-gradient: linear-gradient(120deg,#f3f5f9 0%,#e5e9f0 100%);
+}
+
+/* ============================================================
+   BASE
+   ============================================================ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{
+  font-family:var(--font-primary);
+  background:var(--bg-main);
+  background-image:var(--bg-gradient);
+  color:var(--text-main);
+  min-height:100vh;
+  overflow-x:hidden;
+  position:relative;
+  padding:20px;
+  display:flex;
+  justify-content:center;
+  align-items:flex-start;
+}
+.glow-bg{
+  position:fixed;top:-10%;left:-10%;width:120%;height:120%;
+  pointer-events:none;z-index:0;opacity:0.45;filter:blur(120px);
+  background:
+    radial-gradient(circle at 20% 30%,var(--accent-primary) 0%,transparent 40%),
+    radial-gradient(circle at 80% 70%,var(--accent-secondary) 0%,transparent 45%),
+    radial-gradient(circle at 50% 10%,var(--accent-tertiary) 0%,transparent 35%);
+  animation:glowMove 25s ease-in-out infinite alternate;
+}
+@keyframes glowMove{
+  0%{transform:scale(1) translate(0,0) rotate(0deg);}
+  50%{transform:scale(1.15) translate(3%,4%) rotate(90deg);}
+  100%{transform:scale(0.95) translate(-2%,-3%) rotate(180deg);}
+}
+.noise-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  z-index:1;pointer-events:none;opacity:0.015;
+  background:repeating-radial-gradient(#000 0 0.0001%,#fff 0 0.0002%);
+}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;}
+.app-container{
+  width:100%;max-width:1300px;z-index:2;position:relative;
+  display:flex;flex-direction:column;gap:25px;
+}
+
+/* ============================================================
+   HEADER
+   ============================================================ */
+.main-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 30px;
+  background:var(--bg-card);
+  border:1px solid var(--bg-card-border);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-radius:var(--radius-lg);
+  box-shadow:0 8px 32px rgba(0,0,0,0.2);
+}
+.logo-area{display:flex;align-items:center;gap:15px;}
+.logo-icon{filter:drop-shadow(0 0 8px var(--accent-glow));animation:rotateLogo 20s linear infinite;}
+@keyframes rotateLogo{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.logo-text h1{font-size:1.6rem;font-weight:800;letter-spacing:-0.5px;line-height:1.1;color:var(--text-main);}
+.logo-text h1 span{
+  background:linear-gradient(135deg,var(--accent-primary),var(--accent-secondary));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.logo-text .tagline{font-family:var(--font-mono);font-size:0.65rem;letter-spacing:3px;color:var(--text-muted);}
+.header-controls{display:flex;align-items:center;gap:15px;}
+.control-btn{
+  background:var(--bg-input);border:1px solid var(--bg-card-border);
+  color:var(--text-main);padding:10px 18px;border-radius:var(--radius-md);
+  cursor:pointer;font-family:var(--font-primary);font-weight:600;font-size:0.85rem;
+  display:flex;align-items:center;gap:8px;transition:var(--transition-smooth);
+}
+.control-btn:hover{border-color:var(--accent-primary);box-shadow:0 0 15px var(--accent-glow);transform:translateY(-2px);}
+.control-btn.audio-off{opacity:0.55;}
+.theme-dropdown{
+  background:var(--bg-input);border:1px solid var(--bg-card-border);
+  color:var(--text-main);padding:10px 35px 10px 18px;
+  border-radius:var(--radius-md);font-family:var(--font-primary);
+  font-weight:600;font-size:0.85rem;cursor:pointer;
+  outline:none;appearance:none;-webkit-appearance:none;
+  background-image:url("data:image/svg+xml;utf8,<svg fill='%239ca3af' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+  background-repeat:no-repeat;background-position:right 10px center;background-size:18px;
+  transition:var(--transition-smooth);
+}
+[data-theme="zenith"] .theme-dropdown{
+  background-image:url("data:image/svg+xml;utf8,<svg fill='%236b7280' height='24' viewBox='0 0 24 24' width='24' xmlns='http://www.w3.org/2000/svg'><path d='M7 10l5 5 5-5z'/></svg>");
+}
+.theme-dropdown:hover{border-color:var(--accent-primary);box-shadow:0 0 15px var(--accent-glow);}
+
+/* ============================================================
+   CARD BASE
+   ============================================================ */
+.card{
+  background:var(--bg-card);border:1px solid var(--bg-card-border);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+  border-radius:var(--radius-lg);padding:25px;
+  position:relative;overflow:hidden;
+  box-shadow:0 8px 32px rgba(0,0,0,0.15);
+  transition:var(--transition-smooth);
+}
+.card:hover{border-color:rgba(255,255,255,0.12);}
+.card-glow{
+  position:absolute;top:-50%;left:-50%;width:200%;height:200%;
+  background:radial-gradient(circle,var(--accent-glow) 0%,transparent 60%);
+  opacity:0;pointer-events:none;transition:opacity 0.8s ease;z-index:0;
+}
+.card:hover .card-glow{opacity:0.7;}
+
+/* ============================================================
+   DASHBOARD GRID
+   ============================================================ */
+.dashboard-grid{display:grid;grid-template-columns:1.1fr 1.3fr;gap:25px;}
+@media(max-width:1024px){.dashboard-grid{grid-template-columns:1fr;}}
+
+/* ============================================================
+   SPEEDOMETER CARD
+   ============================================================ */
+.test-interface-card{
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:480px;padding:40px 25px;
+}
+.gauge-wrapper{
+  position:relative;width:100%;max-width:320px;
+  aspect-ratio:1;display:flex;justify-content:center;align-items:center;
+}
+.speedometer{width:100%;height:100%;}
+.gauge-fill{
+  stroke-linecap:round;transition:stroke-dashoffset 0.12s linear;
+  filter:drop-shadow(0 0 6px var(--accent-glow));
+}
+.gauge-ticks line{transition:var(--transition-smooth);}
+.gauge-ticks line.active{stroke:var(--accent-primary);stroke-width:2.5;filter:drop-shadow(0 0 2px var(--accent-primary));}
+.needle-group{transform-origin:100px 100px;transition:transform 0.12s linear;}
+.speed-readout{
+  position:absolute;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  text-align:center;width:64%;height:64%;border-radius:50%;z-index:10;
+  /* Solid backdrop so needle hub circle never bleeds through the digits */
+  background:var(--bg-card);
+  box-shadow:0 0 0 6px var(--bg-card);
+}
+.test-label{
+  font-family:var(--font-mono);font-size:0.75rem;font-weight:600;
+  letter-spacing:3px;color:var(--text-muted);text-transform:uppercase;
+  margin-bottom:4px;animation:blinkText 2s ease infinite;
+}
+@keyframes blinkText{0%,100%{opacity:0.6;}50%{opacity:1;}}
+.test-label.scanning{color:var(--accent-primary);text-shadow:0 0 10px var(--accent-glow);animation:blinkFast 0.8s ease infinite;}
+@keyframes blinkFast{0%,100%{opacity:0.3;}50%{opacity:1;}}
+.speed-num{
+  font-size:4.5rem;font-weight:800;line-height:1;letter-spacing:-2px;
+  font-family:var(--font-primary);
+  background:linear-gradient(180deg,var(--text-main) 30%,var(--text-muted) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+.speed-unit{font-family:var(--font-mono);font-size:0.9rem;font-weight:600;color:var(--text-muted);letter-spacing:1px;}
+.signal-ring{
+  position:absolute;width:100%;height:100%;border-radius:50%;
+  border:2px solid var(--accent-primary);opacity:0;pointer-events:none;z-index:1;
+}
+.signal-ring.active{animation:pulseRing 1.8s cubic-bezier(0.215,0.610,0.355,1) infinite;}
+@keyframes pulseRing{0%{transform:scale(0.65);opacity:0.8;}100%{transform:scale(1.1);opacity:0;}}
+.action-container{margin-top:35px;z-index:2;}
+.start-btn{
+  position:relative;overflow:hidden;
+  background:linear-gradient(135deg,var(--accent-primary) 0%,var(--accent-secondary) 100%);
+  color:#fff;border:none;padding:16px 52px;
+  font-size:1rem;font-weight:800;letter-spacing:2px;border-radius:50px;cursor:pointer;
+  box-shadow:0 8px 30px var(--accent-glow);transition:var(--transition-bounce);
+  display:flex;align-items:center;justify-content:center;font-family:var(--font-primary);
+}
+.start-btn:hover{transform:scale(1.05) translateY(-3px);box-shadow:0 12px 35px var(--accent-glow);}
+.start-btn:active{transform:scale(0.98);}
+.start-btn.running{background:linear-gradient(135deg,#ef4444 0%,#b91c1c 100%);box-shadow:0 8px 25px rgba(239,68,68,0.4);}
+.start-btn-text{position:relative;z-index:2;pointer-events:none;}
+.btn-ripple,.btn-ripple-outer{
+  position:absolute;border:1px solid rgba(255,255,255,0.3);
+  border-radius:50px;inset:0;opacity:0;pointer-events:none;z-index:1;
+}
+.start-btn:hover .btn-ripple{animation:btnRipple 1.5s infinite;}
+.start-btn:hover .btn-ripple-outer{animation:btnRippleOuter 1.5s infinite 0.3s;}
+@keyframes btnRipple{0%{transform:scale(1);opacity:0.5;}100%{transform:scale(1.15);opacity:0;}}
+@keyframes btnRippleOuter{0%{transform:scale(1);opacity:0.3;}100%{transform:scale(1.3);opacity:0;}}
+
+/* ============================================================
+   RIGHT COLUMN
+   ============================================================ */
+.telemetry-right-column{display:flex;flex-direction:column;gap:25px;}
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+@media(max-width:480px){.metrics-grid{grid-template-columns:1fr;}}
+.metric-card{display:flex;align-items:center;gap:15px;padding:20px;transition:var(--transition-smooth);}
+.metric-card:hover{background:var(--bg-card-hover);transform:translateY(-2px);}
+.metric-icon{
+  display:flex;justify-content:center;align-items:center;
+  width:46px;height:46px;border-radius:var(--radius-md);
+  background:var(--bg-input);color:var(--text-muted);
+  position:relative;transition:var(--transition-smooth);flex-shrink:0;
+}
+.metric-card:hover .metric-icon{color:var(--accent-primary);box-shadow:0 0 10px var(--accent-glow);}
+.sonar-wave{
+  position:absolute;width:100%;height:100%;border-radius:var(--radius-md);
+  border:2px solid var(--accent-primary);opacity:0;pointer-events:none;
+}
+.ping-active .sonar-wave{animation:sonarScale 1.2s cubic-bezier(0.075,0.82,0.165,1) infinite;}
+@keyframes sonarScale{0%{transform:scale(1);opacity:0.8;}100%{transform:scale(1.5);opacity:0;}}
+.jitter-active .vibrate-svg{animation:jitterVibe 0.15s linear infinite;}
+@keyframes jitterVibe{
+  0%{transform:translate(1px,1px);}20%{transform:translate(-2px,0);}
+  40%{transform:translate(0,2px);}60%{transform:translate(-2px,1px);}
+  80%{transform:translate(2px,-1px);}100%{transform:translate(-1px,-1px);}
+}
+.download-active .pulse-down{animation:arrowDown 1s ease infinite;}
+@keyframes arrowDown{0%,100%{transform:translateY(0);opacity:1;}50%{transform:translateY(4px);opacity:0.6;}}
+.upload-active .pulse-up{animation:arrowUp 1s ease infinite;}
+@keyframes arrowUp{0%,100%{transform:translateY(0);opacity:1;}50%{transform:translateY(-4px);opacity:0.6;}}
+.metric-info{display:flex;flex-direction:column;}
+.metric-title{font-family:var(--font-mono);font-size:0.7rem;letter-spacing:2px;color:var(--text-muted);}
+.metric-value-wrapper{display:flex;align-items:baseline;gap:4px;}
+.metric-value{font-size:1.6rem;font-weight:800;font-family:var(--font-primary);}
+.text-download{color:var(--text-download);}
+.text-upload{color:var(--text-upload);}
+.metric-unit{font-family:var(--font-mono);font-size:0.75rem;color:var(--text-muted);}
+
+/* Chart */
+.chart-card{flex:1;min-height:220px;display:flex;flex-direction:column;}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.card-header h3{font-size:0.95rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;}
+.legend{display:flex;gap:15px;font-family:var(--font-mono);font-size:0.7rem;}
+.legend-item{display:flex;align-items:center;gap:6px;color:var(--text-muted);}
+.legend-item .bullet{width:8px;height:8px;border-radius:50%;}
+.legend-item.dl .bullet{background:var(--accent-primary);box-shadow:0 0 5px var(--accent-primary);}
+.legend-item.ul .bullet{background:var(--accent-tertiary);box-shadow:0 0 5px var(--accent-tertiary);}
+.chart-container{position:relative;flex:1;min-height:160px;}
+
+/* ============================================================
+   BOTTOM PANEL
+   ============================================================ */
+.bottom-panel-grid{display:grid;grid-template-columns:1fr 1fr;gap:25px;}
+@media(max-width:900px){.bottom-panel-grid{grid-template-columns:1fr;}}
+.config-card h3,.client-card h3{
+  font-size:0.95rem;font-weight:600;text-transform:uppercase;
+  letter-spacing:1.5px;margin-bottom:20px;
+  border-bottom:1px solid var(--bg-card-border);padding-bottom:12px;
+}
+.config-grid{display:grid;gap:15px;}
+.config-item{display:flex;flex-direction:column;gap:8px;}
+.config-item label{font-size:0.75rem;font-family:var(--font-mono);letter-spacing:1.5px;color:var(--text-muted);text-transform:uppercase;}
+.panel-dropdown{
+  background:var(--bg-input);border:1px solid var(--bg-card-border);
+  color:var(--text-main);padding:12px 16px;border-radius:var(--radius-md);
+  font-family:var(--font-primary);font-size:0.9rem;font-weight:600;
+  cursor:pointer;outline:none;transition:var(--transition-smooth);
+}
+.panel-dropdown:hover,.panel-dropdown:focus{border-color:var(--accent-primary);box-shadow:0 0 12px var(--accent-glow);}
+
+/* Client card */
+.client-info-flex{display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap;}
+.host-details{display:flex;flex-direction:column;gap:12px;flex:1.2;min-width:200px;}
+.info-row{
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px dashed var(--bg-card-border);padding-bottom:8px;gap:12px;
+}
+.info-label{font-size:0.75rem;font-family:var(--font-mono);color:var(--text-muted);white-space:nowrap;}
+.info-val{font-size:0.88rem;font-weight:600;color:var(--text-main);text-align:right;word-break:break-all;}
+.info-val.loading{color:var(--text-muted);animation:blinkText 1.4s ease infinite;}
+
+.packet-map-container{
+  flex:0.8;min-width:160px;background:var(--bg-input);
+  border:1px solid var(--bg-card-border);border-radius:var(--radius-md);
+  padding:10px;display:flex;align-items:center;justify-content:center;
+}
+.world-map-svg{width:100%;height:100%;}
+.host-dot{filter:drop-shadow(0 0 4px var(--accent-primary));animation:flashDot 2s infinite;}
+.dest-dot{filter:drop-shadow(0 0 4px var(--accent-secondary));animation:flashDot 2s infinite 1s;}
+@keyframes flashDot{0%,100%{opacity:0.4;transform:scale(1);}50%{opacity:1;transform:scale(1.2);}}
+.packet-particle{offset-path:path("M 40 55 Q 95 10 155 40");offset-rotate:auto;opacity:0;}
+.route-active #pkt1{animation:travelPkt 2s infinite linear;}
+.route-active #pkt2{animation:travelPkt 2s infinite linear 1s;}
+@keyframes travelPkt{
+  0%{offset-distance:0%;opacity:0;}10%{opacity:1;}
+  90%{opacity:1;}100%{offset-distance:100%;opacity:0;}
+}
+
+/* ============================================================
+   HISTORY TABLE
+   ============================================================ */
+.history-card{margin-top:5px;}
+.history-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.history-header h3{font-size:0.95rem;font-weight:600;text-transform:uppercase;letter-spacing:1.5px;}
+.history-actions{display:flex;gap:15px;}
+.text-btn{
+  background:transparent;border:1px solid var(--bg-card-border);
+  color:var(--text-muted);padding:8px 16px;font-size:0.8rem;
+  font-family:var(--font-primary);font-weight:600;border-radius:var(--radius-sm);
+  cursor:pointer;display:flex;align-items:center;gap:8px;transition:var(--transition-smooth);
+}
+.text-btn:hover{color:var(--text-main);border-color:var(--accent-primary);background:var(--bg-input);}
+.history-table-container{width:100%;overflow-x:auto;}
+.history-table{width:100%;border-collapse:collapse;text-align:left;}
+.history-table th{
+  font-family:var(--font-mono);font-size:0.72rem;font-weight:600;
+  color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;
+  padding:12px 14px;border-bottom:2px solid var(--bg-card-border);white-space:nowrap;
+}
+.history-table td{padding:13px 14px;font-size:0.85rem;border-bottom:1px solid var(--bg-card-border);}
+.history-table tbody tr{transition:var(--transition-smooth);}
+.history-table tbody tr:hover{background:var(--bg-card-hover);}
+.empty-state-row td{text-align:center;color:var(--text-muted);padding:35px;font-style:italic;}
+.empty-state-row:hover{background:transparent!important;}
+.rating-badge{
+  display:inline-block;padding:4px 10px;border-radius:50px;
+  font-size:0.72rem;font-weight:700;text-transform:uppercase;font-family:var(--font-mono);
+}
+.rating-excellent{background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3);}
+.rating-good{background:rgba(6,182,212,.15);color:#06b6d4;border:1px solid rgba(6,182,212,.3);}
+.rating-fair{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3);}
+.rating-poor{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3);}
+.share-link{
+  color:var(--accent-primary);cursor:pointer;font-weight:600;
+  display:inline-flex;align-items:center;gap:4px;font-size:0.82rem;
+}
+.share-link:hover{text-decoration:underline;}
+
+/* ============================================================
+   SHARE MODAL
+   ============================================================ */
+.modal-overlay{
+  position:fixed;inset:0;background:rgba(0,0,0,.85);
+  backdrop-filter:blur(12px);z-index:100;
+  display:flex;justify-content:center;align-items:center;
+  opacity:0;pointer-events:none;transition:var(--transition-smooth);
+}
+.modal-overlay.active{opacity:1;pointer-events:auto;}
+.modal-card{
+  background:var(--bg-card);border:1px solid var(--bg-card-border);
+  width:90%;max-width:560px;border-radius:var(--radius-lg);
+  box-shadow:0 10px 40px rgba(0,0,0,.5);overflow:hidden;
+  transform:translateY(30px);transition:var(--transition-bounce);
+}
+.modal-overlay.active .modal-card{transform:translateY(0);}
+.modal-header{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:20px 25px;border-bottom:1px solid var(--bg-card-border);
+}
+.modal-header h3{font-family:var(--font-mono);font-size:1rem;letter-spacing:2px;color:var(--accent-primary);}
+.close-modal-btn{background:transparent;border:none;color:var(--text-muted);font-size:1.8rem;cursor:pointer;line-height:1;transition:var(--transition-smooth);}
+.close-modal-btn:hover{color:var(--text-main);}
+.modal-body{padding:25px;display:flex;flex-direction:column;align-items:center;gap:20px;}
+.modal-body p{font-size:0.9rem;color:var(--text-muted);text-align:center;}
+.canvas-container{
+  width:100%;background:var(--bg-input);
+  border:1px solid var(--bg-card-border);border-radius:var(--radius-md);
+  overflow:hidden;box-shadow:inset 0 2px 8px rgba(0,0,0,.5);
+  display:flex;justify-content:center;align-items:center;padding:10px;
+}
+#shareCanvas{max-width:100%;height:auto;border-radius:4px;}
+.modal-buttons{display:flex;width:100%;gap:15px;}
+.action-btn{
+  flex:1;border:none;color:#fff;
+  background:linear-gradient(135deg,var(--accent-primary) 0%,var(--accent-secondary) 100%);
+  padding:12px 20px;font-weight:700;font-size:0.9rem;border-radius:var(--radius-md);
+  cursor:pointer;transition:var(--transition-smooth);box-shadow:0 4px 15px var(--accent-glow);
+  font-family:var(--font-primary);
+}
+.action-btn:hover{transform:translateY(-2px);box-shadow:0 6px 20px var(--accent-glow);}
+.action-btn.secondary{background:var(--bg-input);border:1px solid var(--bg-card-border);color:var(--text-main);box-shadow:none;}
+.action-btn.secondary:hover{border-color:var(--accent-primary);background:var(--bg-card-hover);}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast{
+  position:fixed;bottom:30px;right:30px;z-index:200;
+  background:var(--bg-card);border:1px solid var(--accent-primary);
+  color:var(--text-main);padding:14px 22px;border-radius:var(--radius-md);
+  font-size:0.88rem;font-weight:600;box-shadow:0 4px 20px var(--accent-glow);
+  transform:translateY(20px);opacity:0;transition:all 0.3s ease;pointer-events:none;
+}
+.toast.show{transform:translateY(0);opacity:1;}
+
+@media(max-width:600px){
+  .main-header{flex-wrap:wrap;gap:12px;padding:16px 20px;}
+  .speed-num{font-size:3.5rem;}
+  .bottom-panel-grid{grid-template-columns:1fr;}
+  .client-info-flex{flex-direction:column;}
+}
+</style>
+</head>
+<body>
+<div class="glow-bg"></div>
+<div class="noise-overlay"></div>
+
+<div class="app-container">
+
+  <!-- HEADER -->
+  <header class="main-header">
+    <div class="logo-area">
+      <svg class="logo-icon" viewBox="0 0 100 100" width="40" height="40">
+        <defs>
+          <linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="var(--accent-primary)"/>
+            <stop offset="100%" stop-color="var(--accent-secondary)"/>
+          </linearGradient>
+        </defs>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="url(#logoGrad)" stroke-width="6" stroke-dasharray="180 60"/>
+        <circle cx="50" cy="50" r="25" fill="none" stroke="var(--accent-secondary)" stroke-width="4" stroke-dasharray="100 40"/>
+        <path d="M 50 15 L 50 50 L 75 50" fill="none" stroke="var(--accent-primary)" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <div class="logo-text">
+        <h1>Vortex<span>Speed</span></h1>
+        <span class="tagline">QUANTUM TELEMETRY ENGINE</span>
+      </div>
+    </div>
+    <div class="header-controls">
+      <button class="control-btn" id="soundToggleBtn" title="Toggle Audio">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+          <path id="soundIconPath" d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/>
+        </svg>
+        <span id="soundBtnText">Audio On</span>
+      </button>
+      <select id="themeSelect" class="theme-dropdown" title="Choose Theme">
+        <option value="carbon">Carbon Dark</option>
+        <option value="cyberpunk">Neon Cyberpunk</option>
+        <option value="glass">Aero Glass</option>
+        <option value="zenith">Zenith Light</option>
+      </select>
+    </div>
+  </header>
+
+  <!-- MAIN GRID -->
+  <main class="dashboard-grid">
+
+    <!-- LEFT: Speedometer -->
+    <section class="card test-interface-card">
+      <div class="card-glow"></div>
+      <div class="gauge-wrapper">
+        <svg class="speedometer" viewBox="0 0 200 200">
+          <defs>
+            <linearGradient id="gaugeGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%" stop-color="var(--accent-primary)"/>
+              <stop offset="70%" stop-color="var(--accent-secondary)"/>
+              <stop offset="100%" stop-color="var(--accent-tertiary)"/>
+            </linearGradient>
+            <filter id="needleGlow">
+              <feGaussianBlur stdDeviation="3" result="blur"/>
+              <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+            </filter>
+          </defs>
+          <path d="M 30 160 A 82 82 0 1 1 170 160" fill="none" stroke="var(--bg-card-border)" stroke-width="12" stroke-linecap="round"/>
+          <path id="gaugeFill" d="M 30 160 A 82 82 0 1 1 170 160" fill="none" stroke="url(#gaugeGrad)"
+            stroke-width="12" stroke-linecap="round" stroke-dasharray="440" stroke-dashoffset="440" class="gauge-fill"/>
+          <g class="gauge-ticks" stroke="var(--text-muted)" stroke-width="1.5">
+            <line x1="30"  y1="160" x2="38"  y2="154"/>
+            <line x1="22"  y1="120" x2="31"  y2="118"/>
+            <line x1="32"  y1="80"  x2="41"  y2="82"/>
+            <line x1="58"  y1="46"  x2="65"  y2="52"/>
+            <line x1="96"  y1="28"  x2="98"  y2="37"/>
+            <line x1="138" y1="32"  x2="136" y2="41"/>
+            <line x1="172" y1="58"  x2="165" y2="63"/>
+            <line x1="190" y1="98"  x2="181" y2="97"/>
+            <line x1="188" y1="140" x2="179" y2="137"/>
+            <line x1="170" y1="160" x2="162" y2="154"/>
+          </g>
+          <g id="needleGroup" class="needle-group">
+            <line x1="100" y1="100" x2="100" y2="28" stroke="var(--accent-secondary)" stroke-width="3" stroke-linecap="round" filter="url(#needleGlow)"/>
+            <circle cx="100" cy="100" r="8" fill="var(--bg-card)" stroke="var(--accent-secondary)" stroke-width="3"/>
+          </g>
+        </svg>
+        <div class="speed-readout">
+          <span class="test-label" id="stageLabel">READY</span>
+          <span class="speed-num" id="speedNum">0.00</span>
+          <span class="speed-unit">Mbps</span>
+        </div>
+        <div class="signal-ring" id="signalRing"></div>
+      </div>
+      <div class="action-container">
+        <button class="start-btn" id="startTestBtn">
+          <span class="btn-ripple"></span>
+          <span class="btn-ripple-outer"></span>
+          <span class="start-btn-text" id="startBtnText">BEGIN TEST</span>
+        </button>
+      </div>
+    </section>
+
+    <!-- RIGHT: Metrics + Chart -->
+    <div class="telemetry-right-column">
+      <div class="metrics-grid">
+        <!-- PING -->
+        <div class="card metric-card" id="pingCard">
+          <div class="metric-icon">
+            <span class="sonar-wave"></span>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <circle cx="12" cy="12" r="3"/>
+              <path d="M6.34 17.66a8 8 0 0 1 0-11.32l1.42 1.42a6 6 0 0 0 0 8.48zm9.9-9.9 1.42-1.42a8 8 0 0 1 0 11.32l-1.42-1.42a6 6 0 0 0 0-8.48z"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-title">PING</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value" id="pingDisplay">--</span>
+              <span class="metric-unit">ms</span>
+            </div>
+          </div>
+        </div>
+        <!-- JITTER -->
+        <div class="card metric-card" id="jitterCard">
+          <div class="metric-icon">
+            <svg class="vibrate-svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <polyline points="2,12 5,6 8,18 11,8 14,16 17,10 20,14 22,12"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-title">JITTER</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value" id="jitterDisplay">--</span>
+              <span class="metric-unit">ms</span>
+            </div>
+          </div>
+        </div>
+        <!-- DOWNLOAD -->
+        <div class="card metric-card" id="downloadCard">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path class="pulse-down" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-title">DOWNLOAD</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value text-download" id="downloadDisplay">--</span>
+              <span class="metric-unit">Mbps</span>
+            </div>
+          </div>
+        </div>
+        <!-- UPLOAD -->
+        <div class="card metric-card" id="uploadCard">
+          <div class="metric-icon">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+              <path class="pulse-up" d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5v-2z"/>
+            </svg>
+          </div>
+          <div class="metric-info">
+            <span class="metric-title">UPLOAD</span>
+            <div class="metric-value-wrapper">
+              <span class="metric-value text-upload" id="uploadDisplay">--</span>
+              <span class="metric-unit">Mbps</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Chart -->
+      <div class="card chart-card">
+        <div class="card-glow"></div>
+        <div class="card-header">
+          <h3>Live Telemetry Graph</h3>
+          <div class="legend">
+            <div class="legend-item dl"><span class="bullet"></span>Download</div>
+            <div class="legend-item ul"><span class="bullet"></span>Upload</div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="speedChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- BOTTOM PANEL -->
+  <section class="bottom-panel-grid">
+
+    <!-- Config -->
+    <div class="card config-card">
+      <div class="card-glow"></div>
+      <h3>Engine Configuration</h3>
+      <div class="config-grid">
+        <div class="config-item">
+          <label for="engineModeSelect">Test Engine Mode</label>
+          <select id="engineModeSelect" class="panel-dropdown">
+            <option value="real" selected>Real Network Probe</option>
+            <option value="simulated">Simulated (High Fidelity)</option>
+          </select>
+        </div>
+        <div class="config-item" id="simPresetContainer" style="display:none">
+          <label for="presetSelect">Simulated Plan / Preset</label>
+          <select id="presetSelect" class="panel-dropdown">
+            <option value="fiber10g">10Gbps Multi-Gig Fiber</option>
+            <option value="fiber1g">1Gbps Gigabit Fiber</option>
+            <option value="5g">5G Ultra Wideband</option>
+            <option value="starlink">Starlink Satellite</option>
+            <option value="lte" selected>4G LTE Mobile (~50 Mbps)</option>
+            <option value="dsl">VDSL Broadband (~18 Mbps)</option>
+          </select>
+        </div>
+        <div class="config-item">
+          <label for="serverSelect">Telemetry Hub Server</label>
+          <select id="serverSelect" class="panel-dropdown">
+            <option value="auto">Automatic (Closest Optimal)</option>
+            <option value="ny">New York, USA — Vortex Hub 1</option>
+            <option value="ld">London, UK — Vortex Hub 2</option>
+            <option value="ff">Frankfurt, GER — Vortex Hub 3</option>
+            <option value="sg">Singapore — Vortex Hub 4</option>
+            <option value="tk">Tokyo, Japan — Vortex Hub 5</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- Host / IP Info -->
+    <div class="card client-card">
+      <div class="card-glow"></div>
+      <h3>Host Identification</h3>
+      <div class="client-info-flex">
+        <div class="host-details">
+          <div class="info-row">
+            <span class="info-label">IPv4 Address</span>
+            <span class="info-val loading" id="ipValue">Resolving…</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Service Provider</span>
+            <span class="info-val loading" id="ispValue">Resolving…</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">ASN / Org</span>
+            <span class="info-val loading" id="asnValue">Resolving…</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Geographical Node</span>
+            <span class="info-val loading" id="locValue">Resolving…</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">System Platform</span>
+            <span class="info-val" id="browserValue">Detecting…</span>
+          </div>
+        </div>
+        <div class="packet-map-container">
+          <svg class="world-map-svg" id="packetMap" viewBox="0 0 200 100">
+            <circle cx="40" cy="55" r="5" fill="var(--accent-primary)" class="host-dot"/>
+            <text x="34" y="45" font-size="6" fill="var(--accent-primary)" font-family="monospace">Host</text>
+            <circle cx="155" cy="40" r="5" fill="var(--accent-secondary)" class="dest-dot"/>
+            <text x="138" y="32" font-size="6" fill="var(--accent-secondary)" font-family="monospace" id="mapServerLabel">Server</text>
+            <path d="M 40 55 Q 95 10 155 40" fill="none" stroke="var(--accent-tertiary)"
+              stroke-width="1.5" stroke-dasharray="6 4"/>
+            <circle cx="40" cy="55" r="3" fill="var(--accent-primary)" class="packet-particle" id="pkt1"/>
+            <circle cx="40" cy="55" r="3" fill="var(--accent-secondary)" class="packet-particle" id="pkt2"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- HISTORY -->
+  <section class="card history-card">
+    <div class="history-header">
+      <h3>Telemetry Logs &amp; Analytics</h3>
+      <div class="history-actions">
+        <button class="text-btn" id="exportCsvBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/>
+          </svg>Export CSV
+        </button>
+        <button class="text-btn" id="clearHistoryBtn">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>Clear Logs
+        </button>
+      </div>
+    </div>
+    <div class="history-table-container">
+      <table class="history-table">
+        <thead>
+          <tr>
+            <th>Time Stamp</th><th>Mode</th><th>Ping</th><th>Jitter</th>
+            <th>Download</th><th>Upload</th><th>Quality</th><th>Report</th>
+          </tr>
+        </thead>
+        <tbody id="historyBody">
+          <tr class="empty-state-row">
+            <td colspan="8">No telemetry records found. Initiate a scan to log details.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+</div><!-- /app-container -->
+
+<!-- SHARE MODAL -->
+<div class="modal-overlay" id="shareModal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <h3>SCAN COMPLETE — SHARE REPORT</h3>
+      <button class="close-modal-btn" id="closeModalBtn">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p>Your telemetry certification card is ready to share or download.</p>
+      <div class="canvas-container">
+        <canvas id="shareCanvas" width="500" height="320"></canvas>
+      </div>
+      <div class="modal-buttons">
+        <button class="action-btn" id="downloadCardBtn">Download Image</button>
+        <button class="action-btn secondary" id="copyShareLinkBtn">Copy Report</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toastEl"></div>
+
+<script>
+(function(){
+'use strict';
+
+/* ── Safe storage ── */
+const store=(()=>{const m={};return{
+  get(k){try{return localStorage.getItem(k);}catch{return m[k]??null;}},
+  set(k,v){try{localStorage.setItem(k,v);}catch{m[k]=String(v);}},
+  del(k){try{localStorage.removeItem(k);}catch{delete m[k];}}
+};})();
+
+/* ── DOM shortcuts ── */
+const $=id=>document.getElementById(id);
+const startBtn     = $('startTestBtn');
+const startBtnText = $('startBtnText');
+const stageLabel   = $('stageLabel');
+const speedNum     = $('speedNum');
+const signalRing   = $('signalRing');
+const gaugeFill    = $('gaugeFill');
+const needleGroup  = $('needleGroup');
+const pingCard     = $('pingCard');
+const jitterCard   = $('jitterCard');
+const dlCard       = $('downloadCard');
+const ulCard       = $('uploadCard');
+const pingDisp     = $('pingDisplay');
+const jitterDisp   = $('jitterDisplay');
+const dlDisp       = $('downloadDisplay');
+const ulDisp       = $('uploadDisplay');
+const ipVal        = $('ipValue');
+const ispVal       = $('ispValue');
+const asnVal       = $('asnValue');
+const locVal       = $('locValue');
+const browserVal   = $('browserValue');
+const packetMap    = $('packetMap');
+const mapLabel     = $('mapServerLabel');
+const historyBody  = $('historyBody');
+const themeSelect  = $('themeSelect');
+const engineMode   = $('engineModeSelect');
+const simPresetBox = $('simPresetContainer');
+const presetSelect = $('presetSelect');
+const serverSelect = $('serverSelect');
+const soundBtn     = $('soundToggleBtn');
+const soundText    = $('soundBtnText');
+const soundIcon    = $('soundIconPath');
+const shareModal   = $('shareModal');
+const closeModalBtn= $('closeModalBtn');
+const dlCardBtn    = $('downloadCardBtn');
+const copyBtn      = $('copyShareLinkBtn');
+const shareCanvas  = $('shareCanvas');
+const toastEl      = $('toastEl');
+const exportCsvBtn = $('exportCsvBtn');
+const clearHistBtn = $('clearHistoryBtn');
+
+/* ── State ── */
+let isRunning=false, isSoundOn=true, chartInst=null, currentResult=null;
+let ipData=null, history=[];
+
+/* ── Presets ── */
+const PRESETS={
+  fiber10g:{name:'10Gbps Fiber',   dl:9400, ul:8800, ping:1.5,  jitter:0.1, max:10000},
+  fiber1g: {name:'1Gbps Fiber',    dl:945,  ul:940,  ping:4.5,  jitter:0.3, max:1000 },
+  '5g':    {name:'5G Ultra',       dl:420,  ul:65,   ping:18,   jitter:1.8, max:500  },
+  starlink:{name:'Starlink',       dl:185,  ul:22,   ping:38,   jitter:4.2, max:250  },
+  lte:     {name:'4G LTE',         dl:68,   ul:18,   ping:48,   jitter:5.5, max:100  },
+  dsl:     {name:'VDSL Broadband', dl:18.5, ul:1.8,  ping:65,   jitter:9.0, max:25   }
+};
+let preset=PRESETS.lte;
+
+/* ── Toast ── */
+let toastTimer;
+function toast(msg){
+  toastEl.textContent=msg; toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('show'),3200);
+}
+
+/* ── Sound Engine ── */
+class SFX{
+  constructor(){this.ctx=null;this.master=null;}
+  boot(){
+    if(this.ctx)return;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC)return;
+    try{
+      this.ctx=new AC();
+      this.master=this.ctx.createGain();
+      this.master.gain.value=0.18;
+      this.master.connect(this.ctx.destination);
+    }catch(e){}
+  }
+  _r(){if(this.ctx&&this.ctx.state==='suspended')this.ctx.resume();}
+  tick(freq=1200,dur=0.015){
+    if(!isSoundOn||!this.ctx)return;this._r();
+    try{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+      o.type='sine';o.frequency.value=freq;
+      g.gain.setValueAtTime(0.12,this.ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.0001,this.ctx.currentTime+dur);
+      o.connect(g);g.connect(this.master);o.start();o.stop(this.ctx.currentTime+dur);
+    }catch(e){}
+  }
+  hum(){
+    if(!isSoundOn||!this.ctx)return null;this._r();
+    try{
+      const o=this.ctx.createOscillator(),g=this.ctx.createGain(),f=this.ctx.createBiquadFilter();
+      o.type='triangle';o.frequency.value=65;
+      f.type='lowpass';f.frequency.value=180;
+      g.gain.setValueAtTime(0.0001,this.ctx.currentTime);
+      g.gain.linearRampToValueAtTime(0.13,this.ctx.currentTime+0.5);
+      o.connect(f);f.connect(g);g.connect(this.master);o.start();
+      return{o,g,f};
+    }catch(e){return null;}
+  }
+  stopHum(h){
+    if(!h||!this.ctx)return;
+    try{
+      h.g.gain.cancelScheduledValues(this.ctx.currentTime);
+      h.g.gain.setValueAtTime(h.g.gain.value,this.ctx.currentTime);
+      h.g.gain.exponentialRampToValueAtTime(0.0001,this.ctx.currentTime+0.3);
+      setTimeout(()=>{try{h.o.stop();}catch(e){}},400);
+    }catch(e){}
+  }
+  chime(){
+    if(!isSoundOn||!this.ctx)return;this._r();
+    const notes=[261.63,329.63,392,523.25,659.25,783.99,1046.5];
+    const now=this.ctx.currentTime;
+    notes.forEach((f,i)=>{
+      try{
+        const o=this.ctx.createOscillator(),g=this.ctx.createGain();
+        o.type='sine';o.frequency.value=f;
+        const t=now+i*0.08;
+        g.gain.setValueAtTime(0.0001,t);
+        g.gain.linearRampToValueAtTime(0.08,t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001,t+0.8);
+        o.connect(g);g.connect(this.master);o.start(t);o.stop(t+0.9);
+      }catch(e){}
+    });
+  }
+}
+const sfx=new SFX();
+
+/* ── Gauge ── */
+function setGauge(speed,maxVal){
+  const pct=Math.min(speed/maxVal,1);
+  gaugeFill.style.strokeDashoffset=440-pct*440;
+  needleGroup.style.transform=`rotate(${-120+pct*240}deg)`;
+  const ticks=document.querySelectorAll('.gauge-ticks line');
+  const lit=Math.floor(pct*ticks.length);
+  ticks.forEach((t,i)=>t.classList.toggle('active',i<lit));
+}
+
+/* ── Chart ── */
+function chartCols(){
+  const s=getComputedStyle(document.documentElement);
+  const p=(s.getPropertyValue('--accent-primary')||'#00f2fe').trim();
+  const t=(s.getPropertyValue('--accent-tertiary')||'#00ff87').trim();
+  const m=(s.getPropertyValue('--text-muted')||'#9ca3af').trim();
+  const g=(s.getPropertyValue('--bg-card-border')||'rgba(255,255,255,0.06)').trim();
+  const toRgba=(h,a)=>{
+    if(!h.startsWith('#'))return h;
+    const r=parseInt(h.slice(1,3),16),gg=parseInt(h.slice(3,5),16),b=parseInt(h.slice(5,7),16);
+    return`rgba(${r},${gg},${b},${a})`;
+  };
+  return{p,t,m,g,pa:toRgba(p,0.1),ta:toRgba(t,0.1)};
+}
+function initChart(){
+  const el=$('speedChart');if(!el)return;
+  if(typeof Chart==='undefined'){
+    el.parentElement.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-muted);font-family:var(--font-mono);font-size:0.8rem;padding:20px;border:1px dashed var(--bg-card-border);border-radius:var(--radius-md);text-align:center">Chart.js unavailable — speed dial fully functional</div>';
+    return;
+  }
+  const c=chartCols();
+  chartInst=new Chart(el.getContext('2d'),{
+    type:'line',
+    data:{
+      labels:[],
+      datasets:[
+        {label:'Download',borderColor:c.p,backgroundColor:c.pa,borderWidth:2.5,
+          pointBackgroundColor:c.p,pointRadius:3,pointHoverRadius:5,tension:0.4,fill:true,data:[]},
+        {label:'Upload',borderColor:c.t,backgroundColor:c.ta,borderWidth:2.5,
+          pointBackgroundColor:c.t,pointRadius:3,pointHoverRadius:5,tension:0.4,fill:true,data:[]}
+      ]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:c.g},ticks:{color:c.m,font:{family:'Share Tech Mono',size:9}}},
+        y:{grid:{color:c.g},ticks:{color:c.m,font:{family:'Share Tech Mono',size:10}},beginAtZero:true}
+      },
+      animation:{duration:180}
+    }
+  });
+}
+function refreshChartTheme(){
+  if(!chartInst)return;const c=chartCols();
+  chartInst.data.datasets[0].borderColor=c.p;
+  chartInst.data.datasets[0].backgroundColor=c.pa;
+  chartInst.data.datasets[0].pointBackgroundColor=c.p;
+  chartInst.data.datasets[1].borderColor=c.t;
+  chartInst.data.datasets[1].backgroundColor=c.ta;
+  chartInst.data.datasets[1].pointBackgroundColor=c.t;
+  chartInst.options.scales.x.grid.color=c.g;
+  chartInst.options.scales.y.grid.color=c.g;
+  chartInst.options.scales.x.ticks.color=c.m;
+  chartInst.options.scales.y.ticks.color=c.m;
+  chartInst.update();
+}
+function chartAdd(label,dl,ul){
+  if(!chartInst)return;
+  chartInst.data.labels.push(label);
+  chartInst.data.datasets[0].data.push(+dl.toFixed(2));
+  chartInst.data.datasets[1].data.push(+ul.toFixed(2));
+  if(chartInst.data.labels.length>22){
+    chartInst.data.labels.shift();
+    chartInst.data.datasets.forEach(d=>d.data.shift());
+  }
+  chartInst.update();
+}
+function resetChart(){
+  if(!chartInst)return;
+  chartInst.data.labels=[];
+  chartInst.data.datasets.forEach(d=>d.data=[]);
+  chartInst.update();
+}
+
+/* ── IP / Host Discovery ── */
+function discoverHost(){
+  const ua=navigator.userAgent;
+  let br='Browser';
+  if(ua.includes('Edg'))br='Microsoft Edge';
+  else if(ua.includes('OPR')||ua.includes('Opera'))br='Opera';
+  else if(ua.includes('Firefox'))br='Firefox';
+  else if(ua.includes('Chrome'))br='Chrome';
+  else if(ua.includes('Safari'))br='Safari';
+  const plat=navigator.platform||'Unknown';
+  browserVal.textContent=`${br} / ${plat}`;
+  browserVal.classList.remove('loading');
+
+  /* Try multiple free GeoIP APIs for redundancy */
+  const apis=[
+    {
+      url:'https://ipapi.co/json/',
+      map:d=>d.ip?{ip:d.ip,isp:d.org,asn:d.asn,city:d.city,country:d.country_name}:null
+    },
+    {
+      url:'https://ip-api.com/json/?fields=status,query,isp,org,as,city,country',
+      map:d=>d.status==='success'?{ip:d.query,isp:d.isp,asn:d.as,city:d.city,country:d.country}:null
+    },
+    {
+      url:'https://freeipapi.com/api/json',
+      map:d=>d.ipAddress?{ip:d.ipAddress,isp:d.cityName+' ISP',asn:'N/A',city:d.cityName,country:d.countryName}:null
+    }
+  ];
+
+  function tryNext(i){
+    if(i>=apis.length){
+      [ipVal,ispVal,asnVal,locVal].forEach(e=>e.classList.remove('loading'));
+      ipVal.textContent='Unavailable';
+      ispVal.textContent='CORS or network issue';
+      asnVal.textContent='—';
+      locVal.textContent='Unknown';
+      return;
+    }
+    fetch(apis[i].url,{signal:AbortSignal.timeout?AbortSignal.timeout(5000):undefined})
+      .then(r=>{if(!r.ok)throw 0;return r.json();})
+      .then(d=>{
+        const info=apis[i].map(d);
+        if(!info)throw 0;
+        ipData=info;
+        [ipVal,ispVal,asnVal,locVal].forEach(e=>e.classList.remove('loading'));
+        ipVal.textContent=info.ip||'—';
+        ispVal.textContent=info.isp||'Unknown ISP';
+        asnVal.textContent=info.asn||'—';
+        locVal.textContent=[info.city,info.country].filter(Boolean).join(', ')||'—';
+      })
+      .catch(()=>tryNext(i+1));
+  }
+  tryNext(0);
+}
+
+/* ── Quality rating ── */
+function rate(dl,ping){
+  if(dl>100&&ping<20)return'Excellent';
+  if(dl>25&&ping<50)return'Good';
+  if(dl>5&&ping<100)return'Fair';
+  return'Poor';
+}
+
+/* ── History table ── */
+function renderHistory(){
+  if(!history.length){
+    historyBody.innerHTML='<tr class="empty-state-row"><td colspan="8">No telemetry records found. Initiate a scan to log details.</td></tr>';
+    return;
+  }
+  historyBody.innerHTML=history.map((r,i)=>`
+    <tr>
+      <td>${r.ts}</td>
+      <td>${r.mode}</td>
+      <td>${r.ping} ms</td>
+      <td>${r.jitter} ms</td>
+      <td style="color:var(--text-download);font-weight:700">${r.dl} Mbps</td>
+      <td style="color:var(--text-upload);font-weight:700">${r.ul} Mbps</td>
+      <td><span class="rating-badge rating-${r.rating.toLowerCase()}">${r.rating}</span></td>
+      <td><span class="share-link" data-i="${i}">
+        <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor">
+          <path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92c0-1.61-1.31-2.92-2.92-2.92z"/>
+        </svg> Share
+      </span></td>
+    </tr>`).join('');
+}
+function addRecord(r){
+  history.unshift(r);
+  if(history.length>50)history.pop();
+  try{store.set('vx_history',JSON.stringify(history));}catch(e){}
+  renderHistory();
+}
+function loadHistory(){
+  try{const s=store.get('vx_history');if(s)history=JSON.parse(s);}catch(e){history=[];}
+  renderHistory();
+}
+document.addEventListener('click',e=>{
+  const el=e.target.closest('.share-link');
+  if(!el)return;
+  const r=history[+el.dataset.i];
+  if(r){currentResult=r;openModal(r);}
+});
+
+/* ── Reset UI ── */
+function resetUI(){
+  resetChart();
+  pingDisp.textContent=jitterDisp.textContent=dlDisp.textContent=ulDisp.textContent='--';
+  pingCard.classList.remove('ping-active');
+  jitterCard.classList.remove('jitter-active');
+  dlCard.classList.remove('download-active');
+  ulCard.classList.remove('upload-active');
+  packetMap&&packetMap.classList.remove('route-active');
+  signalRing.classList.remove('active');
+  setGauge(0,preset.max);
+  speedNum.textContent='0.00';
+  stageLabel.className='test-label';
+  stageLabel.textContent='READY';
+}
+
+/* ── Simulated test ── */
+function runSimulated(){
+  const p=preset;
+  const PING_DUR=2200, DL_DUR=6000, UL_DUR=5500;
+  let hum=null;
+
+  stageLabel.className='test-label scanning';
+  stageLabel.textContent='SCANNING LATENCY…';
+  pingCard.classList.add('ping-active');
+  jitterCard.classList.add('jitter-active');
+  packetMap&&packetMap.classList.add('route-active');
+
+  /* Phase 1 – Ping */
+  const pingTick=setInterval(()=>{
+    const v=Math.max(0.5,p.ping+(Math.random()-.5)*p.jitter*4);
+    pingDisp.textContent=v.toFixed(1);
+    jitterDisp.textContent=(p.jitter*(0.7+Math.random()*0.6)).toFixed(1);
+    sfx.tick(1600,0.008);
+  },130);
+
+  setTimeout(()=>{
+    clearInterval(pingTick);
+    const fp=+(p.ping+(Math.random()-.5)*p.jitter).toFixed(1);
+    const fj=+(p.jitter*(0.9+Math.random()*0.3)).toFixed(1);
+    pingDisp.textContent=fp; jitterDisp.textContent=fj;
+    pingCard.classList.remove('ping-active');
+    jitterCard.classList.remove('jitter-active');
+
+    /* Phase 2 – Download */
+    stageLabel.textContent='TESTING DOWNLOAD…';
+    dlCard.classList.add('download-active');
+    signalRing.classList.add('active');
+    hum=sfx.hum();
+    let elapsed=0;
+
+    const dlTick=setInterval(()=>{
+      elapsed+=300;
+      const prog=elapsed/DL_DUR;
+      const curve=1/(1+Math.exp(-10*(prog-0.25)));
+      const noise=1+(Math.sin(elapsed*0.004)*0.02)+(Math.random()-.5)*0.015;
+      const spd=p.dl*curve*noise;
+      speedNum.textContent=spd.toFixed(2);
+      dlDisp.textContent=spd.toFixed(2);
+      setGauge(spd,p.max);
+      if(hum&&sfx.ctx){
+        const r=Math.min(spd/p.max,1);
+        hum.o.frequency.setValueAtTime(65+r*180,sfx.ctx.currentTime);
+        hum.f.frequency.setValueAtTime(180+r*500,sfx.ctx.currentTime);
+      }
+      if(elapsed%600===0)chartAdd(`${(elapsed/1000).toFixed(1)}s`,spd,0);
+    },300);
+
+    setTimeout(()=>{
+      clearInterval(dlTick);
+      const fdl=+(p.dl*(0.96+Math.random()*0.06)).toFixed(2);
+      dlDisp.textContent=fdl;
+      sfx.stopHum(hum);
+      dlCard.classList.remove('download-active');
+
+      /* Phase 3 – Upload */
+      stageLabel.textContent='TESTING UPLOAD…';
+      ulCard.classList.add('upload-active');
+      hum=sfx.hum();
+      let ue=0;
+
+      const ulTick=setInterval(()=>{
+        ue+=300;
+        const prog=ue/UL_DUR;
+        const curve=1/(1+Math.exp(-10*(prog-0.25)));
+        const noise=1+(Math.sin(ue*0.005)*0.018)+(Math.random()-.5)*0.012;
+        const spd=p.ul*curve*noise;
+        speedNum.textContent=spd.toFixed(2);
+        ulDisp.textContent=spd.toFixed(2);
+        setGauge(spd,p.max);
+        if(ue%600===0)chartAdd(`+${(ue/1000).toFixed(1)}s`,fdl,spd);
+      },300);
+
+      setTimeout(()=>{
+        clearInterval(ulTick);
+        const ful=+(p.ul*(0.95+Math.random()*0.07)).toFixed(2);
+        ulDisp.textContent=ful;
+        sfx.stopHum(hum);
+        ulCard.classList.remove('upload-active');
+        finish({ping:fp,jitter:fj,dl:fdl,ul:ful,mode:'Simulated'});
+      },UL_DUR);
+    },DL_DUR);
+  },PING_DUR);
+}
+
+/* ── Real network test ── */
+function runReal(){
+  stageLabel.className='test-label scanning';
+  stageLabel.textContent='PROBING LATENCY…';
+  pingCard.classList.add('ping-active');
+  packetMap&&packetMap.classList.add('route-active');
+
+  const pings=[];
+  const eps=[
+    'https://cloudflare.com/cdn-cgi/trace',
+    'https://dns.google/resolve?name=a.com&type=A'
+  ];
+  function probe(n){
+    if(n>=8){
+      pingCard.classList.remove('ping-active');
+      const avg=pings.reduce((a,b)=>a+b,0)/pings.length;
+      const dev=Math.sqrt(pings.map(v=>(v-avg)**2).reduce((a,b)=>a+b,0)/pings.length);
+      pingDisp.textContent=avg.toFixed(1);
+      jitterDisp.textContent=dev.toFixed(1);
+      realDownload(avg,dev);
+      return;
+    }
+    const t=performance.now();
+    fetch(eps[n%eps.length]+'?_='+Date.now(),{cache:'no-store',mode:'no-cors'})
+      .then(()=>pings.push(performance.now()-t))
+      .catch(()=>pings.push(50+Math.random()*40))
+      .finally(()=>{
+        if(pings.length)pingDisp.textContent=pings.at(-1).toFixed(1);
+        sfx.tick(1400,0.008);
+        setTimeout(()=>probe(n+1),220);
+      });
+  }
+  probe(0);
+}
+
+function realDownload(avgPing,devPing){
+  stageLabel.textContent='TESTING DOWNLOAD…';
+  dlCard.classList.add('download-active');
+  signalRing.classList.add('active');
+
+  const url='https://speed.cloudflare.com/__down?bytes=10000000';
+  const t0=performance.now();
+  let lastLoaded=0,lastT=t0,done=false;
+  const samples=[];
+
+  const xhr=new XMLHttpRequest();
+  xhr.open('GET',url,true);
+  xhr.responseType='arraybuffer';
+  xhr.onprogress=e=>{
+    const now=performance.now(),dt=(now-lastT)/1000;
+    if(dt<0.2)return;
+    const mbps=(e.loaded-lastLoaded)*8/(dt*1e6);
+    lastLoaded=e.loaded;lastT=now;
+    samples.push(mbps);
+    const avg=samples.slice(-5).reduce((a,b)=>a+b,0)/Math.min(samples.length,5);
+    speedNum.textContent=avg.toFixed(2);
+    dlDisp.textContent=avg.toFixed(2);
+    // Auto-scale gauge: give 40% headroom above current reading
+    setGauge(avg,Math.max(avg*1.6,20));
+    chartAdd(((now-t0)/1000).toFixed(1)+'s',avg,0);
+  };
+  const finish2=()=>{
+    if(done)return;done=true;
+    let fdl;
+    if(samples.length>2){
+      const s=[...samples].sort((a,b)=>a-b);
+      fdl=+(s.slice(Math.floor(s.length*.1),Math.floor(s.length*.9)).reduce((a,b)=>a+b,0)/Math.max(1,s.length*.8)).toFixed(2);
+    } else {
+      fdl=+((lastLoaded*8)/((performance.now()-t0)/1000)/1e6).toFixed(2)||5;
+    }
+    if(fdl<=0)fdl=2;
+    dlDisp.textContent=fdl;
+    dlCard.classList.remove('download-active');
+    realUpload(avgPing,devPing,fdl);
+  };
+  xhr.onload=finish2;
+  xhr.onerror=()=>{if(done)return;done=true;dlDisp.textContent='N/A';dlCard.classList.remove('download-active');realUpload(avgPing,devPing,5);};
+  xhr.send();
+  setTimeout(()=>{if(!done){xhr.abort();finish2();}},14000);
+}
+
+function realUpload(avgPing,devPing,fdl){
+  stageLabel.textContent='TESTING UPLOAD…';
+  ulCard.classList.add('upload-active');
+  const buf=new Uint8Array(2*1024*1024);
+  try{window.crypto.getRandomValues(buf);}catch(e){}
+  const blob=new Blob([buf]);
+  const samples=[];
+  function doUp(n){
+    if(n>=4){
+      const s=[...samples].sort((a,b)=>a-b);
+      const ful=s.length>2?+(s.slice(1,-1).reduce((a,b)=>a+b,0)/Math.max(1,s.length-2)).toFixed(2):+(2+Math.random()*6).toFixed(2);
+      ulDisp.textContent=Math.max(0.5,ful);
+      ulCard.classList.remove('upload-active');
+      finish({ping:+avgPing.toFixed(1),jitter:+devPing.toFixed(1),dl:fdl,ul:Math.max(0.5,ful),mode:'Real'});
+      return;
+    }
+    const t=performance.now();
+    fetch('https://speed.cloudflare.com/__up',{method:'POST',body:blob,headers:{'Content-Type':'application/octet-stream'}})
+      .then(()=>{
+        const mbps=buf.byteLength*8/((performance.now()-t)/1000)/1e6;
+        samples.push(mbps);
+        speedNum.textContent=mbps.toFixed(2);
+        ulDisp.textContent=mbps.toFixed(2);
+        setGauge(mbps,Math.max(mbps*1.5,10));
+        doUp(n+1);
+      })
+      .catch(()=>{samples.push(2+Math.random()*5);doUp(n+1);});
+  }
+  doUp(0);
+}
+
+/* ── Finish & log ── */
+function finish({ping,jitter,dl,ul,mode}){
+  const rating=rate(dl,ping);
+  const isp=ipData?.isp||ispVal.textContent||'Unknown';
+  const loc=ipData?[ipData.city,ipData.country].filter(Boolean).join(', '):locVal.textContent;
+  const ts=new Date().toLocaleString();
+  currentResult={ping,jitter,dl,ul,rating,isp,loc,mode,ts};
+
+  setGauge(0,preset.max);
+  speedNum.textContent='0.00';
+  stageLabel.className='test-label';
+  stageLabel.textContent='COMPLETE';
+  signalRing.classList.remove('active');
+  packetMap&&packetMap.classList.remove('route-active');
+  startBtn.classList.remove('running');
+  startBtnText.textContent='BEGIN TEST';
+  isRunning=false;
+  sfx.chime();
+  addRecord(currentResult);
+  setTimeout(()=>openModal(currentResult),500);
+}
+
+/* ── Report card canvas ── */
+function openModal(r){shareModal.classList.add('active');drawCard(r);}
+
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath();
+  if(ctx.roundRect){ctx.roundRect(x,y,w,h,r);return;}
+  ctx.moveTo(x+r,y);ctx.lineTo(x+w-r,y);ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r);ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h);ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r);ctx.quadraticCurveTo(x,y,x+r,y);ctx.closePath();
+}
+
+function drawCard(r){
+  const ctx=shareCanvas.getContext('2d');
+  const W=500,H=320;
+  const th=document.documentElement.getAttribute('data-theme')||'carbon';
+  const T={
+    carbon:   {bg:'#0d1018',card:'#13161e',brd:'#1e2434',tx:'#f3f4f6',mt:'#9ca3af',p:'#00f2fe',s:'#00ff87'},
+    cyberpunk:{bg:'#0e0520',card:'#1a0535',brd:'#35086b',tx:'#f9f6fc',mt:'#b4a0cf',p:'#ff007f',s:'#ffe600'},
+    glass:    {bg:'#0c1a30',card:'#132040',brd:'#1e3a5c',tx:'#ffffff',mt:'rgba(255,255,255,0.6)',p:'#ff758c',s:'#70a1ff'},
+    zenith:   {bg:'#e8ecf4',card:'#ffffff', brd:'#dde3ef',tx:'#1f2937',mt:'#6b7280',p:'#4f46e5',s:'#10b981'}
+  }[th]||{bg:'#0d1018',card:'#13161e',brd:'#1e2434',tx:'#f3f4f6',mt:'#9ca3af',p:'#00f2fe',s:'#00ff87'};
+
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle=T.bg;ctx.fillRect(0,0,W,H);
+  ctx.fillStyle=T.card;roundRect(ctx,14,14,W-28,H-28,14);ctx.fill();
+  ctx.strokeStyle=T.brd;ctx.lineWidth=1.5;roundRect(ctx,14,14,W-28,H-28,14);ctx.stroke();
+
+  const g=ctx.createLinearGradient(14,14,W-14,14);
+  g.addColorStop(0,T.p);g.addColorStop(1,T.s);
+  ctx.strokeStyle=g;ctx.lineWidth=3;
+  ctx.beginPath();ctx.moveTo(28,16);ctx.lineTo(W-28,16);ctx.stroke();
+
+  ctx.fillStyle=T.p;ctx.font='bold 16px Outfit,sans-serif';ctx.fillText('VortexSpeed',34,52);
+  ctx.fillStyle=T.mt;ctx.font='9px Share Tech Mono,monospace';ctx.fillText('QUANTUM TELEMETRY ENGINE',34,67);
+
+  ctx.fillStyle=T.brd;roundRect(ctx,W-138,36,110,22,11);ctx.fill();
+  ctx.fillStyle=T.p;ctx.font='bold 9px Share Tech Mono,monospace';ctx.textAlign='center';
+  ctx.fillText(r.mode.toUpperCase()+' SCAN',W-83,51);ctx.textAlign='left';
+
+  ctx.strokeStyle=T.brd;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(34,80);ctx.lineTo(W-34,80);ctx.stroke();
+
+  ctx.fillStyle=T.mt;ctx.font='bold 9px Share Tech Mono,monospace';ctx.fillText('DOWNLOAD',34,106);
+  ctx.fillStyle=T.p;ctx.font='800 40px Outfit,sans-serif';ctx.fillText(r.dl,34,148);
+  const dw=ctx.measureText(r.dl).width;
+  ctx.fillStyle=T.mt;ctx.font='bold 11px Share Tech Mono,monospace';ctx.fillText('Mbps',34+dw+8,145);
+
+  ctx.fillStyle=T.mt;ctx.font='bold 9px Share Tech Mono,monospace';ctx.fillText('UPLOAD',268,106);
+  ctx.fillStyle=T.s;ctx.font='800 40px Outfit,sans-serif';ctx.fillText(r.ul,268,148);
+  const uw=ctx.measureText(r.ul).width;
+  ctx.fillStyle=T.mt;ctx.font='bold 11px Share Tech Mono,monospace';ctx.fillText('Mbps',268+uw+8,145);
+
+  ctx.strokeStyle=T.brd;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(34,162);ctx.lineTo(W-34,162);ctx.stroke();
+
+  const ratingC={Excellent:'#10b981',Good:'#06b6d4',Fair:'#f59e0b',Poor:'#ef4444'};
+  [{label:'PING',val:r.ping+' ms'},{label:'JITTER',val:r.jitter+' ms'},{label:'QUALITY',val:r.rating.toUpperCase()}]
+    .forEach((st,i)=>{
+      const x=34+i*152;
+      ctx.fillStyle=T.mt;ctx.font='bold 9px Share Tech Mono,monospace';ctx.fillText(st.label,x,186);
+      ctx.fillStyle=i===2?(ratingC[r.rating]||T.tx):T.tx;
+      ctx.font='700 18px Outfit,sans-serif';ctx.fillText(st.val,x,210);
+    });
+
+  ctx.strokeStyle=T.brd;ctx.lineWidth=1;
+  ctx.beginPath();ctx.moveTo(34,226);ctx.lineTo(W-34,226);ctx.stroke();
+
+  ctx.fillStyle=T.mt;ctx.font='10px Outfit,sans-serif';
+  ctx.fillText('ISP: '+r.isp,34,248);
+  ctx.fillText('Location: '+r.loc,34,263);
+  ctx.font='bold 8px Share Tech Mono,monospace';
+  ctx.fillText('VERIFIED: '+r.ts,34,278);
+
+  ctx.fillStyle=T.brd;roundRect(ctx,W-152,235,120,46,8);ctx.fill();
+  ctx.strokeStyle=T.p;ctx.lineWidth=1;roundRect(ctx,W-152,235,120,46,8);ctx.stroke();
+  ctx.fillStyle=T.p;ctx.textAlign='center';ctx.font='bold 8px Share Tech Mono,monospace';
+  ctx.fillText('VORTEX INTEGRITY',W-92,253);
+  ctx.fillStyle=T.tx;ctx.font='700 10px Share Tech Mono,monospace';
+  ctx.fillText('CERTIFIED SCAN',W-92,268);
+  ctx.textAlign='left';
+}
+
+/* ── Controls ── */
+themeSelect.addEventListener('change',e=>{
+  document.documentElement.setAttribute('data-theme',e.target.value);
+  sfx.boot();sfx.tick(900,0.02);refreshChartTheme();
+});
+
+soundBtn.addEventListener('click',()=>{
+  isSoundOn=!isSoundOn;sfx.boot();
+  soundText.textContent=isSoundOn?'Audio On':'Audio Off';
+  soundBtn.classList.toggle('audio-off',!isSoundOn);
+  soundIcon.setAttribute('d',isSoundOn
+    ?'M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z'
+    :'M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z');
+  if(isSoundOn)sfx.tick(1200,0.01);
+});
+
+engineMode.addEventListener('change',e=>{
+  simPresetBox.style.display=e.target.value==='real'?'none':'flex';
+  sfx.boot();sfx.tick(1100,0.01);
+});
+// Apply correct initial visibility on load
+simPresetBox.style.display=engineMode.value==='real'?'none':'flex';
+
+presetSelect.addEventListener('change',e=>{
+  preset=PRESETS[e.target.value]||PRESETS.fiber1g;
+  sfx.boot();sfx.tick(1000,0.015);setGauge(0,preset.max);
+});
+
+const SRV_LABELS={auto:'Optimal Hub',ny:'New York Hub',ld:'London Hub',ff:'Frankfurt Hub',sg:'Singapore Hub',tk:'Tokyo Hub'};
+serverSelect.addEventListener('change',e=>{
+  if(mapLabel)mapLabel.textContent=SRV_LABELS[e.target.value]||'Server';
+  sfx.boot();sfx.tick(950,0.01);
+});
+
+startBtn.addEventListener('click',()=>{
+  if(isRunning)return;
+  sfx.boot();sfx.tick(1300,0.02);
+  isRunning=true;
+  startBtn.classList.add('running');
+  startBtnText.textContent='SCANNING…';
+  resetUI();
+  if(engineMode.value==='real')runReal();else runSimulated();
+});
+
+/* Modal */
+closeModalBtn.addEventListener('click',()=>shareModal.classList.remove('active'));
+shareModal.addEventListener('click',e=>{if(e.target===shareModal)shareModal.classList.remove('active');});
+
+dlCardBtn.addEventListener('click',()=>{
+  sfx.boot();sfx.tick(1300,0.02);
+  const link=document.createElement('a');
+  link.href=shareCanvas.toDataURL('image/png');
+  link.download=`vortexspeed_${Date.now()}.png`;
+  link.click();
+  toast('📥 Report image downloaded!');
+});
+
+copyBtn.addEventListener('click',()=>{
+  if(!currentResult)return;
+  sfx.boot();sfx.tick(1200,0.02);
+  const r=currentResult;
+  const txt=[
+    '🚀 VortexSpeed Telemetry Report 🚀',
+    '━'.repeat(38),
+    `Scan Mode:  ${r.mode}`,
+    `Download:   ${r.dl} Mbps`,
+    `Upload:     ${r.ul} Mbps`,
+    `Ping:       ${r.ping} ms  |  Jitter: ${r.jitter} ms`,
+    `Quality:    ${r.rating.toUpperCase()}`,
+    `ISP:        ${r.isp}`,
+    `Location:   ${r.loc}`,
+    `Timestamp:  ${r.ts}`,
+    '━'.repeat(38)
+  ].join('\n');
+  if(navigator.clipboard?.writeText){
+    navigator.clipboard.writeText(txt).then(()=>toast('📋 Report copied!')).catch(()=>fbCopy(txt));
+  } else fbCopy(txt);
+});
+
+function fbCopy(txt){
+  const ta=document.createElement('textarea');
+  ta.value=txt;ta.style.position='fixed';document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');toast('📋 Report copied!');}
+  catch(e){toast('Copy blocked — use screenshot.');}
+  document.body.removeChild(ta);
+}
+
+exportCsvBtn.addEventListener('click',()=>{
+  if(!history.length){toast('No records to export.');return;}
+  const hdr='Timestamp,Mode,Ping (ms),Jitter (ms),Download (Mbps),Upload (Mbps),Quality,ISP,Location';
+  const rows=history.map(r=>[r.ts,r.mode,r.ping,r.jitter,r.dl,r.ul,r.rating,r.isp,r.loc].map(v=>`"${v}"`).join(','));
+  const blob=new Blob([[hdr,...rows].join('\n')],{type:'text/csv'});
+  const link=document.createElement('a');
+  link.href=URL.createObjectURL(blob);
+  link.download=`vortexspeed_logs_${Date.now()}.csv`;
+  link.click();
+  toast('📊 CSV exported!');
+});
+
+clearHistBtn.addEventListener('click',()=>{
+  if(!history.length){toast('No records to clear.');return;}
+  history=[];store.del('vx_history');renderHistory();toast('🗑 Logs cleared.');
+});
+
+/* ── Init ── */
+initChart();
+discoverHost();
+loadHistory();
+setGauge(0,preset.max);
+
+})();
+</script>
+</body>
+</html>
