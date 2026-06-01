@@ -38,4 +38,4 @@ Because VortexSpeed is entirely client-side, launching the dashboard takes less 
 ### Quick Start
 1. Clone this repository to your local system:
    ```bash
-   [git clone [https://github.com/YOUR_USERNAME/VortexSpeed.git](https://github.com/YOUR_USERNAME/VortexSpeed.git)](https://github.com/likhon-43/Modern-Net-Speed.git)
+   git clone [https://github.com/YOUR_USERNAME/VortexSpeed.git](https://github.com/YOUR_USERNAME/VortexSpeed.git)](https://github.com/likhon-43/Modern-Net-Speed.git)
